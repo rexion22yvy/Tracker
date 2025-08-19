@@ -1,0 +1,6 @@
+Server Name,Environment,Category
+Server1,DEV,ADF
+Server2,Test,BIP
+Server3,Staging,FORMS
+Server4,Production,SOA
+Server5,DEV,ADF
