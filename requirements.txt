@@ -1,4 +1,6 @@
-    matplotlib
-    streamlit
-    pandas
-    scikit-learn
+streamlit
+pandas
+matplotlib
+scikit-learn
+openpyxl
+numpy
