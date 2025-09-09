@@ -1,4 +1,5 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
@@ -7,7 +8,7 @@ import numpy as np
 st.set_page_config(page_title="Activity & ME Tracker", layout="wide")
 
 # File paths
-activity_file = "upcoming_activities1.csv"
+activity_file = "upcoming_activities.csv"
 automation_file = "automations.csv"
 me_file = "sample_me_hours.csv"
 
@@ -33,7 +34,7 @@ if "ME Month" in df_me.columns:
     df_me["Month"] = df_me["ME Month"].dt.strftime("%B %Y")
 
 # Tabs for navigation
-tab1, tab2, tab3, tab4 = st.tabs(["Activity Dashboard", "Automations", "ME Hours", "Charts Dashboard"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Activity Dashboard", "Automations", "ME Hours", "Charts Dashboard", "MOM Dashboard"])
 
 # ---------------- Activity Dashboard ----------------
 with tab1:
@@ -247,4 +248,14 @@ with tab4:
             ax.legend()
             plt.xticks(rotation=45, ha="right")
             st.pyplot(fig)
+
+# ---------------- MOM Dashboard ----------------
+with tab5:
+    st.title("📋 MOM Dashboard")
+    try:
+        with open("Momm.html", "r", encoding="utf-8") as file:
+            mom_html_content = file.read()
+        components.html(mom_html_content, height=800, scrolling=True)
+    except FileNotFoundError:
+        st.error("Momm.html file not found. Please ensure it is in the same directory as this script.")
 
