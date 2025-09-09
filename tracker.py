@@ -7,7 +7,7 @@ import numpy as np
 st.set_page_config(page_title="Activity & ME Tracker", layout="wide")
 
 # File paths
-activity_file = "upcoming_activities.csv"
+activity_file = "upcoming_activities1.csv"
 automation_file = "automations.csv"
 me_file = "sample_me_hours.csv"
 
@@ -247,3 +247,4 @@ with tab4:
             ax.legend()
             plt.xticks(rotation=45, ha="right")
             st.pyplot(fig)
+
