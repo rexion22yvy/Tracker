@@ -8,7 +8,7 @@ import numpy as np
 st.set_page_config(page_title="Activity & ME Tracker", layout="wide")
 
 # File paths
-activity_file = "upcoming_activities.csv"
+activity_file = "upcoming_activities1.csv"
 automation_file = "automations.csv"
 me_file = "sample_me_hours.csv"
 
@@ -258,4 +258,5 @@ with tab5:
         components.html(mom_html_content, height=800, scrolling=True)
     except FileNotFoundError:
         st.error("Momm.html file not found. Please ensure it is in the same directory as this script.")
+
 
