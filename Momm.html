@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Convero MOM Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.17.0/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.4.0/jspdf.umd.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f4f6f8;
+      padding: 20px;
+    }
+    h2 {
+      color: #2c3e50;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+      background-color: #fff;
+      margin-top: 20px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    th, td {
+      border: 1px solid #ccc;
+      padding: 10px;
+      text-align: center;
+    }
+    th {
+      background-color: #007bff;
+      color: white;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #007bff;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    input[type="text"], textarea {
+      width: 100%;
+    }
+    #popup {
+      display: none;
+      position: fixed;
+      top: 5%;
+      left: 5%;
+      width: 90%;
+      height: 85%;
+      overflow: hidden;
+      background: white;
+      border: 1px solid #ccc;
+      padding: 20px;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+      z-index: 10;
+    }
+    #popupContentWrapper {
+      height: calc(100% - 140px);
+      overflow-y: auto;
+    }
+    #overlay {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.3);
+      z-index: 5;
+    }
+    .popup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .popup-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+    .popup-row input, .popup-row textarea, .popup-row select {
+      padding: 5px;
+      font-size: 14px;
+    }
+    .popup-row input[type="date"] {
+      width: 150px;
+    }
+    .popup-row textarea.notes-area {
+      width: 60%;
+      height: 60px;
+      resize: vertical;
+      white-space: pre-wrap;
+      overflow-y: auto;
+    }
+    .popup-row select {
+      width: 120px;
+    }
+  </style>
+</head>
+<body>
+  <h2 contenteditable="true" id="editableHeader">📋 Convero MOM Dashboard</h2>
+  <div class="top-buttons">
+    <button onclick="addRow()">➕ Add Row</button>
+    <div>
+      <button onclick="exportToExcel()">🗕️ Export to Excel</button>
+      <button onclick="exportToPDF()">📄 Export to PDF</button>
+    </div>
+  </div>
+
+  <table id="momTable">
+    <thead>
+      <tr>
+        <th>SL NO</th>
+        <th>Title</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div id="overlay"></div>
+  <div id="popup">
+    <div class="popup-header">
+      <input type="text" id="popupTitle" placeholder="Enter Title for this MOM entry" style="width: 80%; padding: 8px; font-size: 16px;" />
+      <button onclick="savePopup()">💾 Save</button>
+    </div>
+    <div id="popupContentWrapper">
+      <div id="popupContent"></div>
+    </div>
+    <button onclick="addPopupRow()">➕ Add Row</button>
+  </div>
+
+  <script>
+    let slNo = 1;
+    let selectedRow = null;
+    let savedTitles = new WeakMap();
+    let savedPopupTitles = new WeakMap();
+
+    function saveToLocalStorage() {
+      const data = [];
+      document.querySelectorAll("#momTable tbody tr").forEach(row => {
+        const title = savedPopupTitles.get(row) || "Untitled";
+        const notes = savedTitles.get(row) || [];
+        const status = row.cells[2].querySelector("select").value;
+        data.push({ title, notes, status });
+      });
+      localStorage.setItem("momDashboardData", JSON.stringify(data));
+    }
+
+    function loadFromLocalStorage() {
+      const data = JSON.parse(localStorage.getItem("momDashboardData") || "[]");
+      data.forEach(entry => {
+        const tbody = document.querySelector("#momTable tbody");
+        const row = tbody.insertRow();
+        const slCell = row.insertCell();
+        const titleCell = row.insertCell();
+        const statusCell = row.insertCell();
+        slCell.innerText = slNo++;
+
+        const titleDiv = document.createElement("div");
+        titleDiv.innerText = entry.title;
+        titleDiv.style.cursor = "pointer";
+        titleDiv.onclick = () => openPopup(row);
+        titleCell.appendChild(titleDiv);
+
+        const statusSelect = document.createElement("select");
+        ["Open", "Inprogress", "Hold", "Completed"].forEach(status => {
+          const option = document.createElement("option");
+          option.value = status;
+          option.text = status;
+          statusSelect.appendChild(option);
+        });
+        statusSelect.value = entry.status;
+        statusSelect.disabled = false;
+        statusSelect.onchange = saveToLocalStorage;
+        statusCell.appendChild(statusSelect);
+
+        savedPopupTitles.set(row, entry.title);
+        savedTitles.set(row, entry.notes);
+      });
+    }
+
+    function addRow() {
+      const tbody = document.querySelector("#momTable tbody");
+      const row = tbody.insertRow();
+
+      const slCell = row.insertCell();
+      const titleCell = row.insertCell();
+      const statusCell = row.insertCell();
+
+      slCell.innerText = slNo++;
+
+      const titleDiv = document.createElement("div");
+      titleDiv.innerText = "Click to add title";
+      titleDiv.style.cursor = "pointer";
+      titleDiv.onclick = () => openPopup(row);
+      titleCell.appendChild(titleDiv);
+
+      const statusSelect = document.createElement("select");
+      ["Open", "Inprogress", "Hold", "Completed"].forEach(status => {
+        const option = document.createElement("option");
+        option.value = status;
+        option.text = status;
+        statusSelect.appendChild(option);
+      });
+      statusSelect.disabled = false;
+      statusSelect.onchange = saveToLocalStorage;
+      statusCell.appendChild(statusSelect);
+
+      saveToLocalStorage();
+    }
+
+    function openPopup(row) {
+      selectedRow = row;
+      document.getElementById("popupContent").innerHTML = "";
+      const titleInput = document.getElementById("popupTitle");
+      titleInput.value = savedPopupTitles.get(row) || "";
+      const existingNotes = savedTitles.get(row);
+      if (existingNotes && existingNotes.length) {
+        existingNotes.forEach(data => addPopupRow(data));
+      } else {
+        addPopupRow();
+      }
+      document.getElementById("popup").style.display = "block";
+      document.getElementById("overlay").style.display = "block";
+    }
+
+    function addPopupRow(data = {}) {
+      const container = document.getElementById("popupContent");
+      const rowDiv = document.createElement("div");
+      rowDiv.className = "popup-row";
+
+      const date = document.createElement("input");
+      date.type = "date";
+      date.value = data.date || "";
+
+      const notes = document.createElement("textarea");
+      notes.className = "notes-area";
+      notes.placeholder = "Notes";
+      notes.value = data.notes || "";
+
+      const status = document.createElement("select");
+      ["Open", "Inprogress", "Hold", "Completed"].forEach(st => {
+        const option = document.createElement("option");
+        option.value = st;
+        option.text = st;
+        status.appendChild(option);
+      });
+      status.value = data.status || "Open";
+      const applyColor = () => {
+        const color = status.value === 'Completed' ? 'green' : status.value === 'Inprogress' ? 'orange' : status.value === 'Hold' ? 'red' : '';
+        status.style.backgroundColor = color;
+        status.style.color = color ? 'white' : '';
+      };
+      status.addEventListener('change', applyColor);
+      applyColor();
+
+      rowDiv.appendChild(date);
+      rowDiv.appendChild(notes);
+      rowDiv.appendChild(status);
+      container.appendChild(rowDiv);
+    }
+
+    function closePopup() {
+      document.getElementById("popup").style.display = "none";
+      document.getElementById("overlay").style.display = "none";
+    }
+
+    function savePopup() {
+      const titleInput = document.getElementById("popupTitle");
+      const titleText = titleInput.value || "Untitled";
+      const rows = document.querySelectorAll("#popupContent .popup-row");
+      const allNotes = [];
+      rows.forEach(r => {
+        const inputs = r.querySelectorAll("input, textarea, select");
+        const date = inputs[0].value;
+        const notes = inputs[1].value;
+        const status = inputs[2].value;
+        allNotes.push({ date, notes, status });
+      });
+      const titleCell = selectedRow.cells[1];
+      titleCell.innerText = titleText;
+      titleCell.style.cursor = "pointer";
+      titleCell.onclick = () => openPopup(selectedRow);
+      savedTitles.set(selectedRow, allNotes);
+      savedPopupTitles.set(selectedRow, titleText);
+      closePopup();
+      saveToLocalStorage();
+    }
+
+    function exportToExcel() {
+      const data = [];
+      let slIndex = 1;
+      document.querySelectorAll("#momTable tbody tr").forEach((row) => {
+        const title = savedPopupTitles.get(row) || "Untitled";
+        const notesData = savedTitles.get(row) || [];
+        let first = true;
+        notesData.forEach(note => {
+          const entry = {
+            "SL NO": first ? slIndex++ : "",
+            "Title": first ? title : "",
+            "Date": note.date,
+            "Notes": note.notes,
+            "Status": note.status
+          };
+          data.push(entry);
+          first = false;
+        });
+      });
+      const ws = XLSX.utils.json_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "MOM");
+      XLSX.writeFile(wb, "Convero_MOM.xlsx");
+    }
+
+    function exportToPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      doc.text("Convero MOM Dashboard", 10, 10);
+      const data = [];
+      document.querySelectorAll("#momTable tbody tr").forEach(row => {
+        const title = savedPopupTitles.get(row) || "Untitled";
+        const notesData = savedTitles.get(row) || [];
+        notesData.forEach(note => {
+          data.push([title, note.date, note.notes, note.status]);
+        });
+      });
+      let y = 20;
+      data.forEach(row => {
+        doc.text(row.join(" | "), 10, y);
+        y += 10;
+      });
+      doc.save("Convero_MOM.pdf");
+    }
+
+    window.onload = loadFromLocalStorage;
+  </script>
+</body>
+</html>
